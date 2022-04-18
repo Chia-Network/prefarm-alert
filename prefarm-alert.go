@@ -42,20 +42,29 @@ func main() {
 		}
 	}(file.Name())
 
-	// @TODO run sync and check for errors/output before moving on
+	// 2. Call the sync command, and check for any errors
+	syncCmd := exec.Command("/Users/chrismarslender/Projects/internal-custody/venv/bin/cic", "sync")
+	syncCmd.Dir = "/Users/chrismarslender/Projects/internal-custody"
+	syncCmd.Env = append(syncCmd.Env, "PATH=/Users/chrismarslender/Projects/internal-custody/venv/bin/")
+	_, err = syncCmd.Output()
 
-	// 2. Call the audit command and have it write to the temp file
-	cmd := exec.Command("/Users/chrismarslender/Projects/internal-custody/venv/bin/cic", "audit", "-f", file.Name())
-	cmd.Dir = "/Users/chrismarslender/Projects/internal-custody"
-	cmd.Env = append(cmd.Env, "PATH=/Users/chrismarslender/Projects/internal-custody/venv/bin/")
-	_, err = cmd.Output()
+	if err != nil {
+		log.Fatalf("Error running sync command: %s\n", err.Error())
+		return
+	}
+
+	// 3. Call the audit command and have it write to the temp file
+	auditCmd := exec.Command("/Users/chrismarslender/Projects/internal-custody/venv/bin/cic", "audit", "-f", file.Name())
+	auditCmd.Dir = "/Users/chrismarslender/Projects/internal-custody"
+	auditCmd.Env = append(auditCmd.Env, "PATH=/Users/chrismarslender/Projects/internal-custody/venv/bin/")
+	_, err = auditCmd.Output()
 
 	if err != nil {
 		log.Fatalf("Error running audit command: %s\n", err.Error())
 		return
 	}
 
-	// 3 Read the json from the temp file
+	// 4. Read the json from the temp file
 	auditJSON, err := os.ReadFile(file.Name())
 	if err != nil {
 		log.Fatalf("Error reading audit json file: %s\n", err.Error())
@@ -67,10 +76,14 @@ func main() {
 		log.Fatalf("Error unmarshaling JSON: %s\n", err.Error())
 	}
 
+	// 5. At this point, none of the commands have failed, so we can call the heartbeat endpoint
+	// @TODO call heartbeat endpoint
+
 	newCount := uint64(len(auditData))
 	log.Printf("Audit has %d items in the history\n", newCount)
 	if newCount > currentCount {
 		log.Printf("NEW COUNT (%d) IS GREATER THAN LAST KNOWN COUNT (%d)!!!\n", newCount, currentCount)
+		// @TODO send alert(s)
 	}
 	saveLastKnownCount(newCount)
 	currentCount = newCount
