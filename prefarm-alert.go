@@ -42,6 +42,8 @@ func main() {
 		}
 	}(file.Name())
 
+	// @TODO run sync and check for errors/output before moving on
+
 	// 2. Call the audit command and have it write to the temp file
 	cmd := exec.Command("/Users/chrismarslender/Projects/internal-custody/venv/bin/cic", "audit", "-f", file.Name())
 	cmd.Dir = "/Users/chrismarslender/Projects/internal-custody"
