@@ -1,11 +1,17 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+)
+
+const (
+	fileName = ".audit-count"
 )
 
 type auditItem struct {
@@ -22,6 +28,8 @@ type auditParams struct {
 }
 
 func main() {
+	currentCount := loadLastKnownCount()
+
 	// 1. Get a new temp file name
 	file, err := ioutil.TempFile("", "cic-audit")
 	if err != nil {
@@ -57,5 +65,49 @@ func main() {
 		log.Fatalf("Error unmarshaling JSON: %s\n", err.Error())
 	}
 
-	log.Printf("Audit has %d items in the history\n", len(auditData))
+	newCount := uint64(len(auditData))
+	log.Printf("Audit has %d items in the history\n", newCount)
+	if newCount > currentCount {
+		log.Printf("NEW COUNT (%d) IS GREATER THAN LAST KNOWN COUNT (%d)!!!\n", newCount, currentCount)
+	}
+	saveLastKnownCount(newCount)
+	currentCount = newCount
+}
+
+func loadLastKnownCount() uint64 {
+	if _, err := os.Stat(fileName); errors.Is(err, os.ErrNotExist) {
+		return 0
+	}
+
+	bytes, err := os.ReadFile(fileName)
+	if err != nil {
+		log.Fatalf("Error reading last known audit count: %s\n", err.Error())
+	}
+
+	if len(bytes) == 0 {
+		return 0
+	}
+
+	return BytesToUint64(bytes)
+}
+
+func saveLastKnownCount(count uint64) {
+	err := os.WriteFile(fileName, Uint64ToBytes(count), 0644)
+	if err != nil {
+		log.Fatalf("Error writing last known file: %s\n", err.Error())
+	}
+}
+
+// Uint64ToBytes Converts uint64 to []byte
+func Uint64ToBytes(num uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, num)
+
+	return b
+}
+
+// BytesToUint64 returns uint64 from []byte
+// if you have more than eight bytes in your []byte this wont work like you think
+func BytesToUint64(bytes []byte) uint64 {
+	return binary.BigEndian.Uint64(bytes)
 }
