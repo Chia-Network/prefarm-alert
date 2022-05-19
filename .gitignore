@@ -1,3 +1,5 @@
 main
 bin/
 .audit-count
+*.sqlite
+Observer Info.txt

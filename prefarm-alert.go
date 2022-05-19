@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -12,6 +12,15 @@ import (
 
 const (
 	fileName = ".audit-count"
+
+	// @TODO Make Params
+
+	// Path to the venv with the cic command
+	venvpath = "/Users/chrismarslender/Projects/internal-custody/venv"
+	// datadir is the directory the commands will be run in and the sqlite, etc DB will be stored in
+	datadir = "/Users/chrismarslender/Projects/prefarm-alert"
+	// datafile is the file that contains the info about the singleton
+	datafile = "Observer Info.txt"
 )
 
 type auditItem struct {
@@ -30,46 +39,38 @@ type auditParams struct {
 func main() {
 	currentCount := loadLastKnownCount()
 
-	// 1. Get a new temp file name
-	file, err := ioutil.TempFile("", "cic-audit")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			log.Printf("Error cleeaning up temp file %s: %s\n", file.Name(), err.Error())
-		}
-	}(file.Name())
+	// Check if CHIA_ROOT is set
+	chiaRoot, chiaRootSet := os.LookupEnv("CHIA_ROOT")
 
-	// 2. Call the sync command, and check for any errors
-	syncCmd := exec.Command("/Users/chrismarslender/Projects/internal-custody/venv/bin/cic", "sync")
-	syncCmd.Dir = "/Users/chrismarslender/Projects/internal-custody"
-	syncCmd.Env = append(syncCmd.Env, "PATH=/Users/chrismarslender/Projects/internal-custody/venv/bin/")
-	_, err = syncCmd.Output()
+	// 1. Call the sync command, and check for any errors
+	syncCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "sync", "-c", datafile)
+	syncCmd.Dir = datadir
+	syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+	if chiaRootSet {
+		syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+	}
+	_, err := syncCmd.Output()
 
 	if err != nil {
 		log.Fatalf("Error running sync command: %s\n", err.Error())
 		return
 	}
 
-	// 3. Call the audit command and have it write to the temp file
-	auditCmd := exec.Command("/Users/chrismarslender/Projects/internal-custody/venv/bin/cic", "audit", "-f", file.Name())
-	auditCmd.Dir = "/Users/chrismarslender/Projects/internal-custody"
-	auditCmd.Env = append(auditCmd.Env, "PATH=/Users/chrismarslender/Projects/internal-custody/venv/bin/")
-	_, err = auditCmd.Output()
+	// 2. Call the audit command
+	auditCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit")
+	auditCmd.Dir = datadir
+	auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+	if chiaRootSet {
+		auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+	}
+	auditJSON, err := auditCmd.Output()
 
 	if err != nil {
 		log.Fatalf("Error running audit command: %s\n", err.Error())
 		return
 	}
 
-	// 4. Read the json from the temp file
-	auditJSON, err := os.ReadFile(file.Name())
-	if err != nil {
-		log.Fatalf("Error reading audit json file: %s\n", err.Error())
-	}
-
+	// 4. Parse the json
 	var auditData []auditItem
 	err = json.Unmarshal(auditJSON, &auditData)
 	if err != nil {
@@ -84,6 +85,9 @@ func main() {
 	if newCount > currentCount {
 		log.Printf("NEW COUNT (%d) IS GREATER THAN LAST KNOWN COUNT (%d)!!!\n", newCount, currentCount)
 		// @TODO send alert(s)
+	} else if newCount < currentCount {
+		// If the new count is less, something weird is going on, and we should alert because this is unexpected
+		log.Printf("NEW COUNT (%d) IS LESS THAN THAN LAST KNOWN COUNT (%d)!!! THIS SHOULD NOT HAPPEN! COUNT SHOULD ONLY GO UP!\n", newCount, currentCount)
 	}
 	saveLastKnownCount(newCount)
 	currentCount = newCount
