@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
+	"time"
 )
 
 const (
@@ -21,19 +24,16 @@ const (
 	datadir = "/Users/chrismarslender/Projects/prefarm-alert"
 	// datafile is the file that contains the info about the singleton
 	datafile = "Observer Info.txt"
+
+	loopDelay = 30 * time.Second
+
+	testAlertURL = ""
 )
 
 type auditItem struct {
-	Time   int64       `json:"time"` // Unix Timestamp
-	Action string      `json:"action"`
-	Params auditParams `json:"params"`
-}
-
-type auditParams struct {
-	FromRoot          string  `json:"from_root"`
-	ToRoot            string  `json:"to_root"`
-	Completed         *bool   `json:"completed,omitempty"`
-	CompletedAtHeight *uint64 `json:"completed_at_height,omitempty"`
+	Time   int64           `json:"time"` // Unix Timestamp
+	Action string          `json:"action"`
+	Params json.RawMessage `json:"params"`
 }
 
 func main() {
@@ -42,55 +42,86 @@ func main() {
 	// Check if CHIA_ROOT is set
 	chiaRoot, chiaRootSet := os.LookupEnv("CHIA_ROOT")
 
-	// 1. Call the sync command, and check for any errors
-	syncCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "sync", "-c", datafile)
-	syncCmd.Dir = datadir
-	syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
-	if chiaRootSet {
-		syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
-	}
-	_, err := syncCmd.Output()
+	for {
+		// 1. Call the sync command, and check for any errors
+		syncCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "sync", "-c", datafile)
+		syncCmd.Dir = datadir
+		syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+		if chiaRootSet {
+			syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+		}
+		_, err := syncCmd.Output()
 
-	if err != nil {
-		log.Fatalf("Error running sync command: %s\n", err.Error())
-		return
-	}
+		if err != nil {
+			// @TODO increment error counter
+			log.Printf("Error running sync command: %s\n", err.Error())
+			time.Sleep(loopDelay)
+			continue
+		}
 
-	// 2. Call the audit command
-	auditCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit")
-	auditCmd.Dir = datadir
-	auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
-	if chiaRootSet {
-		auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
-	}
-	auditJSON, err := auditCmd.Output()
+		// 2. Call the audit command
+		auditCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit")
+		auditCmd.Dir = datadir
+		auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+		if chiaRootSet {
+			auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+		}
+		auditJSON, err := auditCmd.Output()
 
-	if err != nil {
-		log.Fatalf("Error running audit command: %s\n", err.Error())
-		return
-	}
+		if err != nil {
+			// @TODO increment error counter
+			log.Printf("Error running audit command: %s\n", err.Error())
+			time.Sleep(loopDelay)
+			continue
+		}
 
-	// 4. Parse the json
-	var auditData []auditItem
-	err = json.Unmarshal(auditJSON, &auditData)
-	if err != nil {
-		log.Fatalf("Error unmarshaling JSON: %s\n", err.Error())
-	}
+		// 4. Parse the json
+		var auditData []auditItem
+		err = json.Unmarshal(auditJSON, &auditData)
+		if err != nil {
+			// @TODO increment error counter
+			log.Printf("Error unmarshaling JSON: %s\n", err.Error())
+			time.Sleep(loopDelay)
+			continue
+		}
 
-	// 5. At this point, none of the commands have failed, so we can call the heartbeat endpoint
-	// @TODO call heartbeat endpoint
+		// 5. At this point, none of the commands have failed, so we can call the heartbeat endpoint
+		// @TODO call heartbeat endpoint
 
-	newCount := uint64(len(auditData))
-	log.Printf("Audit has %d items in the history\n", newCount)
-	if newCount > currentCount {
-		log.Printf("NEW COUNT (%d) IS GREATER THAN LAST KNOWN COUNT (%d)!!!\n", newCount, currentCount)
-		// @TODO send alert(s)
-	} else if newCount < currentCount {
-		// If the new count is less, something weird is going on, and we should alert because this is unexpected
-		log.Printf("NEW COUNT (%d) IS LESS THAN THAN LAST KNOWN COUNT (%d)!!! THIS SHOULD NOT HAPPEN! COUNT SHOULD ONLY GO UP!\n", newCount, currentCount)
+		newCount := uint64(len(auditData))
+		log.Printf("Audit has %d items in the history\n", newCount)
+		if newCount > currentCount {
+			log.Printf("NEW COUNT (%d) IS GREATER THAN LAST KNOWN COUNT (%d)!!!\n", newCount, currentCount)
+
+			// @TODO send alert(s)
+
+			activities := ""
+			for _, activity := range auditData[currentCount:] {
+				marshalledParams, _ := json.Marshal(activity.Params)
+				activities = fmt.Sprintf("%s - %s (%s)\n", activities, activity.Action, string(marshalledParams))
+			}
+
+			msg := map[string]string{
+				"msg": fmt.Sprintf("%d new activities found on the pre-farm!\n%s\n", newCount - currentCount, activities),
+			}
+
+			body, _ := json.Marshal(msg)
+
+			_, err = http.Post(testAlertURL, "application/json", bytes.NewBuffer(body))
+
+			if err != nil {
+				log.Printf("Error sending alert! %s\n", err.Error())
+				return
+			}
+		} else if newCount < currentCount {
+			// If the new count is less, something weird is going on, and we should alert because this is unexpected
+			log.Printf("NEW COUNT (%d) IS LESS THAN THAN LAST KNOWN COUNT (%d)!!! THIS SHOULD NOT HAPPEN! COUNT SHOULD ONLY GO UP!\n", newCount, currentCount)
+		}
+		saveLastKnownCount(newCount)
+		currentCount = newCount
+
+		time.Sleep(loopDelay)
 	}
-	saveLastKnownCount(newCount)
-	currentCount = newCount
 }
 
 func loadLastKnownCount() uint64 {
@@ -100,7 +131,7 @@ func loadLastKnownCount() uint64 {
 
 	bytes, err := os.ReadFile(fileName)
 	if err != nil {
-		log.Fatalf("Error reading last known audit count: %s\n", err.Error())
+		log.Printf("Error reading last known audit count: %s\n", err.Error())
 	}
 
 	if len(bytes) == 0 {
@@ -113,7 +144,7 @@ func loadLastKnownCount() uint64 {
 func saveLastKnownCount(count uint64) {
 	err := os.WriteFile(fileName, Uint64ToBytes(count), 0644)
 	if err != nil {
-		log.Fatalf("Error writing last known file: %s\n", err.Error())
+		log.Printf("Error writing last known file: %s\n", err.Error())
 	}
 }
 
