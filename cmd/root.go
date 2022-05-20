@@ -10,27 +10,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-)
-
-const (
-	fileName = ".audit-count"
-
-	// @TODO Make Params
-
-	// Path to the venv with the cic command
-	venvpath = "/Users/chrismarslender/Projects/internal-custody/venv"
-	// datadir is the directory the commands will be run in and the sqlite, etc DB will be stored in
-	datadir = "/Users/chrismarslender/Projects/prefarm-alert"
-	// datafile is the file that contains the info about the singleton
-	datafile = "Observer Info.txt"
-
-	loopDelay = 5 * time.Second
-
-	testAlertURL = ""
 )
 
 type auditItem struct {
@@ -44,12 +29,17 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "prefarm-alert",
-	Short: "Alerts when changes are happing to a custody singleton",
+	Short: "Alerts when changes are happening to a custody singleton",
 	Run: func(cmd *cobra.Command, args []string) {
 		currentCount := loadLastKnownCount()
 
 		// Check if CHIA_ROOT is set
 		chiaRoot, chiaRootSet := os.LookupEnv("CHIA_ROOT")
+		venvpath := viper.GetString("venv-path")
+		datadir := viper.GetString("data-dir")
+		datafile := viper.GetString("data-file")
+		loopDelay := viper.GetDuration("loop-delay") * time.Second
+		alertURL := viper.GetString("alert-url")
 
 		for {
 			// 1. Call the sync command, and check for any errors
@@ -62,7 +52,8 @@ var rootCmd = &cobra.Command{
 			_, err := syncCmd.Output()
 
 			if err != nil {
-				// @TODO increment error counter
+				// If this happens over and over, eventually the uptime robot heartbeat will fail
+				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
 				log.Printf("Error running sync command: %s\n", err.Error())
 				time.Sleep(loopDelay)
 				continue
@@ -78,7 +69,8 @@ var rootCmd = &cobra.Command{
 			auditJSON, err := auditCmd.Output()
 
 			if err != nil {
-				// @TODO increment error counter
+				// If this happens over and over, eventually the uptime robot heartbeat will fail
+				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
 				log.Printf("Error running audit command: %s\n", err.Error())
 				time.Sleep(loopDelay)
 				continue
@@ -88,7 +80,8 @@ var rootCmd = &cobra.Command{
 			var auditData []auditItem
 			err = json.Unmarshal(auditJSON, &auditData)
 			if err != nil {
-				// @TODO increment error counter
+				// If this happens over and over, eventually the uptime robot heartbeat will fail
+				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
 				log.Printf("Error unmarshaling JSON: %s\n", err.Error())
 				time.Sleep(loopDelay)
 				continue
@@ -111,12 +104,12 @@ var rootCmd = &cobra.Command{
 				}
 
 				msg := map[string]string{
-					"msg": fmt.Sprintf("%d new activities found on the pre-farm!\n%s\n", newCount - currentCount, activities),
+					"msg": fmt.Sprintf("%d new activities found on the pre-farm!\n%s\n", newCount-currentCount, activities),
 				}
 
 				body, _ := json.Marshal(msg)
 
-				_, err = http.Post(testAlertURL, "application/json", bytes.NewBuffer(body))
+				_, err = http.Post(alertURL, "application/json", bytes.NewBuffer(body))
 
 				if err != nil {
 					log.Printf("Error sending alert! %s\n", err.Error())
@@ -144,17 +137,55 @@ func Execute() {
 }
 
 func init() {
+	var (
+		// icVenvPath is the path to the internal custody venv
+		icVenvPath string
+
+		// dataDir is the directory that will contain all data related to this particular singleton
+		// last json, configuration txt file, etc
+		dataDir string
+
+		// dataFile is the file within dataDir that has the data about the singleton we're tracking
+		dataFile string
+
+		// lastJSONFileName is the filename to keep the last received json inside (used to diff for changes)
+		lastJSONFileName string
+
+		// loopDelaySeconds is how many seconds to delay between each sync/audit
+		// This needs to be multiplied by time.Seconds to actually get to seconds
+		loopDelay time.Duration
+
+		// heartbeatURL the URL to ping every time we have a successful loop without any unexpected errors
+		heartbeatURL string
+
+		// alertWebhookURL is the URL to send alerts to when changes are detected on the singleton
+		alertWebhookURL string
+	)
+
 	cobra.OnInitialize(initConfig)
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.prefarm-alert.yaml)")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.PersistentFlags().StringVar(&icVenvPath, "venv-path", "/internal-custody/venv", "The path to the internal custody venv")
+	rootCmd.PersistentFlags().StringVar(&dataDir, "data-dir", "/data", "The directory that contains all data related to a single singleton to be tracked")
+	rootCmd.PersistentFlags().StringVar(&dataFile, "data-file", "Observer Info.txt", "The file that contains the info about the singleton. Should be relative to datadir.")
+	rootCmd.PersistentFlags().StringVar(&lastJSONFileName, "json-filename", ".audit-json", "Keeps the last received json so the results can be diffed each iteration")
+	rootCmd.PersistentFlags().DurationVar(&loopDelay, "loop-delay", 30, "How many seconds in between each audit check")
+	rootCmd.PersistentFlags().StringVar(&heartbeatURL, "heartbeat-url", "", "The URL to send heartbeat events to when a loop completes with no errors")
+	rootCmd.PersistentFlags().StringVar(&alertWebhookURL, "alert-url", "", "The URL to send webhook alerts to when things change in the singleton")
+
+	checkErr(viper.BindPFlag("venv-path", rootCmd.PersistentFlags().Lookup("venv-path")))
+	checkErr(viper.BindPFlag("data-dir", rootCmd.PersistentFlags().Lookup("data-dir")))
+	checkErr(viper.BindPFlag("data-file", rootCmd.PersistentFlags().Lookup("data-file")))
+	checkErr(viper.BindPFlag("json-filename", rootCmd.PersistentFlags().Lookup("json-filename")))
+	checkErr(viper.BindPFlag("loop-delay", rootCmd.PersistentFlags().Lookup("loop-delay")))
+	checkErr(viper.BindPFlag("heartbeat-url", rootCmd.PersistentFlags().Lookup("heartbeat-url")))
+	checkErr(viper.BindPFlag("alert-url", rootCmd.PersistentFlags().Lookup("alert-url")))
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -173,6 +204,8 @@ func initConfig() {
 		viper.SetConfigName(".prefarm-alert")
 	}
 
+	viper.SetEnvPrefix("PREFARM_ALERT")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
@@ -181,12 +214,19 @@ func initConfig() {
 	}
 }
 
+func getJSONFilePath() string {
+	dir := viper.GetString("data-dir")
+	file := viper.GetString("json-filename")
+
+	return path.Join(dir, file)
+}
+
 func loadLastKnownCount() uint64 {
-	if _, err := os.Stat(fileName); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(getJSONFilePath()); errors.Is(err, os.ErrNotExist) {
 		return 0
 	}
 
-	bytes, err := os.ReadFile(fileName)
+	bytes, err := os.ReadFile(getJSONFilePath())
 	if err != nil {
 		log.Printf("Error reading last known audit count: %s\n", err.Error())
 	}
@@ -199,7 +239,7 @@ func loadLastKnownCount() uint64 {
 }
 
 func saveLastKnownCount(count uint64) {
-	err := os.WriteFile(fileName, Uint64ToBytes(count), 0644)
+	err := os.WriteFile(getJSONFilePath(), Uint64ToBytes(count), 0644)
 	if err != nil {
 		log.Printf("Error writing last known file: %s\n", err.Error())
 	}
@@ -218,4 +258,3 @@ func Uint64ToBytes(num uint64) []byte {
 func BytesToUint64(bytes []byte) uint64 {
 	return binary.BigEndian.Uint64(bytes)
 }
-
