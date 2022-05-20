@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-yaml/yaml"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -22,9 +23,9 @@ type auditDiff struct {
 }
 
 type auditItem struct {
-	Time   int64           `json:"time"` // Unix Timestamp
-	Action string          `json:"action"`
-	Params json.RawMessage `json:"params"`
+	Time   int64                  `json:"time"` // Unix Timestamp
+	Action string                 `json:"action"`
+	Params map[string]interface{} `json:"params"`
 }
 
 var cfgFile string
@@ -112,7 +113,7 @@ var rootCmd = &cobra.Command{
 			if diffCount > 0 {
 				activities := ""
 				for _, activity := range auditDiffResult {
-					marshalledParams, _ := json.Marshal(activity.New.Params)
+					marshalledYaml, _ := yaml.Marshal(activity.New.Params)
 					var eventType string
 					if activity.Old != nil {
 						eventType = "UPDATED EVENT"
@@ -120,11 +121,11 @@ var rootCmd = &cobra.Command{
 						eventType = "NEW EVENT"
 					}
 					// @TODO maybe we can format the json params as yaml to make it easier to read?
-					activities = fmt.Sprintf("%s - [%s] %s (%s)\n", activities, eventType, activity.New.Action, string(marshalledParams))
+					activities = fmt.Sprintf("%s**(%s) %s**\n%s\n\n", activities, eventType, activity.New.Action, string(marshalledYaml))
 				}
 
 				msg := map[string]string{
-					"msg": fmt.Sprintf("%d new activities found on the pre-farm!\n%s\n", diffCount, activities),
+					"msg": fmt.Sprintf(":rotating_light: :rotating_light: %d new activities found on the pre-farm! :rotating_light: :rotating_light:\n%s\n", diffCount, activities),
 				}
 
 				body, _ := json.Marshal(msg)
