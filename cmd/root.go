@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,6 +15,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+type auditDiff struct {
+	Old *auditItem `json:"old,omitempty"`
+	New *auditItem `json:"new,omitempty"`
+}
 
 type auditItem struct {
 	Time   int64           `json:"time"` // Unix Timestamp
@@ -31,8 +34,6 @@ var rootCmd = &cobra.Command{
 	Use:   "prefarm-alert",
 	Short: "Alerts when changes are happening to a custody singleton",
 	Run: func(cmd *cobra.Command, args []string) {
-		currentCount := loadLastKnownCount()
-
 		// Check if CHIA_ROOT is set
 		chiaRoot, chiaRootSet := os.LookupEnv("CHIA_ROOT")
 		venvpath := viper.GetString("venv-path")
@@ -42,7 +43,7 @@ var rootCmd = &cobra.Command{
 		alertURL := viper.GetString("alert-url")
 
 		for {
-			// 1. Call the sync command, and check for any errors
+			// Call the sync command, and check for any errors
 			syncCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "sync", "-c", datafile)
 			syncCmd.Dir = datadir
 			syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
@@ -59,15 +60,30 @@ var rootCmd = &cobra.Command{
 				continue
 			}
 
-			// 2. Call the audit command
-			auditCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit")
+			// Call the audit command to get the diff between previous json and current audit events
+			auditDiffCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit", "-d", getJSONFilePath())
+			auditDiffCmd.Dir = datadir
+			auditDiffCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+			if chiaRootSet {
+				auditDiffCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+			}
+			auditDiffJSON, err := auditDiffCmd.Output()
+			if err != nil {
+				// If this happens over and over, eventually the uptime robot heartbeat will fail
+				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
+				log.Printf("Error running audit diff command: %s\n", err.Error())
+				time.Sleep(loopDelay)
+				continue
+			}
+
+			// Call the audit command to save the raw audit JSON, after we successfully got the diff output
+			auditCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit", "-f", getJSONFilePath())
 			auditCmd.Dir = datadir
 			auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
 			if chiaRootSet {
 				auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
 			}
-			auditJSON, err := auditCmd.Output()
-
+			_, err = auditCmd.Output()
 			if err != nil {
 				// If this happens over and over, eventually the uptime robot heartbeat will fail
 				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
@@ -76,35 +92,39 @@ var rootCmd = &cobra.Command{
 				continue
 			}
 
-			// 4. Parse the json
-			var auditData []auditItem
-			err = json.Unmarshal(auditJSON, &auditData)
+			// Parse the json diff
+			var auditDiffResult []auditDiff
+			err = json.Unmarshal(auditDiffJSON, &auditDiffResult)
 			if err != nil {
 				// If this happens over and over, eventually the uptime robot heartbeat will fail
 				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
-				log.Printf("Error unmarshaling JSON: %s\n", err.Error())
+				log.Printf("Error unmarshaling audit diff JSON: %s\n", err.Error())
 				time.Sleep(loopDelay)
 				continue
 			}
 
-			// 5. At this point, none of the commands have failed, so we can call the heartbeat endpoint
+			// At this point, none of the commands have failed, so we can call the heartbeat endpoint
 			// @TODO call heartbeat endpoint
 
-			newCount := uint64(len(auditData))
-			log.Printf("Audit has %d items in the history\n", newCount)
-			if newCount > currentCount {
-				log.Printf("NEW COUNT (%d) IS GREATER THAN LAST KNOWN COUNT (%d)!!!\n", newCount, currentCount)
+			diffCount := len(auditDiffResult)
 
-				// @TODO send alert(s)
-
+			log.Printf("Audit diff found %d new events!\n", diffCount)
+			if diffCount > 0 {
 				activities := ""
-				for _, activity := range auditData[currentCount:] {
-					marshalledParams, _ := json.Marshal(activity.Params)
-					activities = fmt.Sprintf("%s - %s (%s)\n", activities, activity.Action, string(marshalledParams))
+				for _, activity := range auditDiffResult {
+					marshalledParams, _ := json.Marshal(activity.New.Params)
+					var eventType string
+					if activity.Old != nil {
+						eventType = "UPDATED EVENT"
+					} else {
+						eventType = "NEW EVENT"
+					}
+					// @TODO maybe we can format the json params as yaml to make it easier to read?
+					activities = fmt.Sprintf("%s - [%s] %s (%s)\n", activities, eventType, activity.New.Action, string(marshalledParams))
 				}
 
 				msg := map[string]string{
-					"msg": fmt.Sprintf("%d new activities found on the pre-farm!\n%s\n", newCount-currentCount, activities),
+					"msg": fmt.Sprintf("%d new activities found on the pre-farm!\n%s\n", diffCount, activities),
 				}
 
 				body, _ := json.Marshal(msg)
@@ -115,12 +135,7 @@ var rootCmd = &cobra.Command{
 					log.Printf("Error sending alert! %s\n", err.Error())
 					return
 				}
-			} else if newCount < currentCount {
-				// If the new count is less, something weird is going on, and we should alert because this is unexpected
-				log.Printf("NEW COUNT (%d) IS LESS THAN THAN LAST KNOWN COUNT (%d)!!! THIS SHOULD NOT HAPPEN! COUNT SHOULD ONLY GO UP!\n", newCount, currentCount)
 			}
-			saveLastKnownCount(newCount)
-			currentCount = newCount
 
 			time.Sleep(loopDelay)
 		}
@@ -219,42 +234,4 @@ func getJSONFilePath() string {
 	file := viper.GetString("json-filename")
 
 	return path.Join(dir, file)
-}
-
-func loadLastKnownCount() uint64 {
-	if _, err := os.Stat(getJSONFilePath()); errors.Is(err, os.ErrNotExist) {
-		return 0
-	}
-
-	bytes, err := os.ReadFile(getJSONFilePath())
-	if err != nil {
-		log.Printf("Error reading last known audit count: %s\n", err.Error())
-	}
-
-	if len(bytes) == 0 {
-		return 0
-	}
-
-	return BytesToUint64(bytes)
-}
-
-func saveLastKnownCount(count uint64) {
-	err := os.WriteFile(getJSONFilePath(), Uint64ToBytes(count), 0644)
-	if err != nil {
-		log.Printf("Error writing last known file: %s\n", err.Error())
-	}
-}
-
-// Uint64ToBytes Converts uint64 to []byte
-func Uint64ToBytes(num uint64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, num)
-
-	return b
-}
-
-// BytesToUint64 returns uint64 from []byte
-// if you have more than eight bytes in your []byte this wont work like you think
-func BytesToUint64(bytes []byte) uint64 {
-	return binary.BigEndian.Uint64(bytes)
 }
