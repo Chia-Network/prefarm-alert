@@ -21,6 +21,10 @@ heartbeatURL: ""
 # Designed to work with keybase webhooks, this is where alerts about prefarm activity are sent
 alertURL: ""
 
+# Chia Options
+isTestnet: "false"
+log_level: ERROR
+
 podAnnotations: {}
 
 podSecurityContext: {}

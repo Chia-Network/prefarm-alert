@@ -30,9 +30,50 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: PREFARM_ALERT_ALERT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "prefarm-alert.fullname" . }}
+                  key: alert_url
+            - name: PREFARM_ALERT_HEARTBEAT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "prefarm-alert.fullname" . }}
+                  key: heartbeat_url
+            - name: DATA_DIR
+              value: "/ic-data"
+            - name: CHIA_ROOT
+              value: "/chia-data"
+            - name: service
+              value: "node"
+            - name: testnet
+              value: "{{ .Values.isTestnet }}"
+            - name: log_level
+              value: "{{ .Values.log_level }}"
+          volumeMounts:
+            - name: observer-data
+              mountPath: "/"
+              readOnly: true
+            - name: ic-data
+              mountPath: "/ic-data"
+            - name: chia-data
+              mountPath: "/chia-data"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
+      volumes:
+        - name: observer-data
+          secret:
+            secretName: {{ include "prefarm-alert.fullname" . }}
+            items:
+              - key: "observer-data.txt"
+        - name: ic-data
+          persistentVolumeClaim:
+            claimName: "{{ include \"prefarm-alert.fullname\" . }}-ic-data"
+        - name: chia-data
+          persistentVolumeClaim:
+            claimName: "{{ include \"prefarm-alert.fullname\" . }}-chia-data"
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}

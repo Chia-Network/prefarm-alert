@@ -1,0 +1,23 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "{{ include \"prefarm-alert.fullname\" . }}-ic-data"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: longhorn
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "{{ include \"prefarm-alert.fullname\" . }}-chia-data"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: longhorn
