@@ -5,3 +5,5 @@ bin/
 *.sqlite
 Observer Info.txt
 /chia-data/
+# Only want the j2 files
+/k8s/values/*.yaml
