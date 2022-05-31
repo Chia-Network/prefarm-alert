@@ -56,11 +56,11 @@ jobs:
           password: ${{ env.IMAGE_PULL_PASSWORD }}
           docker_server: "ghcr.io"
 
-      - uses: Chia-Network/actions/helm/deploy@main
-        env:
-          DOCKER_TAG: sha-${{ github.sha }}
-        with:
-          namespace: prefarm-alert-chris-testnet10
-          app_name: prefarm-alert-chris-testnet10
-          helm_chart: "./k8s/prefarm-alert"
-          helm_values: "./k8s/values/chris-testnet10.yaml"
+#      - uses: Chia-Network/actions/helm/deploy@main
+#        env:
+#          DOCKER_TAG: sha-${{ github.sha }}
+#        with:
+#          namespace: prefarm-alert-chris-testnet10
+#          app_name: prefarm-alert-chris-testnet10
+#          helm_chart: "./k8s/prefarm-alert"
+#          helm_values: "./k8s/values/chris-testnet10.yaml"
