@@ -41,7 +41,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "prefarm-alert.fullname" . }}
                   key: heartbeat_url
-            - name: DATA_DIR
+            - name: PREFARM_ALERT_DATA_DIR
               value: "/ic-data"
             - name: CHIA_ROOT
               value: "/chia-data"
