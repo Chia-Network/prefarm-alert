@@ -39,13 +39,13 @@ var rootCmd = &cobra.Command{
 		chiaRoot, chiaRootSet := os.LookupEnv("CHIA_ROOT")
 		venvpath := viper.GetString("venv-path")
 		datadir := viper.GetString("data-dir")
-		datafile := viper.GetString("data-file")
+		observerData := viper.GetString("observer-data")
 		loopDelay := viper.GetDuration("loop-delay") * time.Second
 		alertURL := viper.GetString("alert-url")
 
 		for {
 			// Call the sync command, and check for any errors
-			syncCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "sync", "-c", datafile)
+			syncCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "sync", "-c", observerData)
 			syncCmd.Dir = datadir
 			syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
 			if chiaRootSet {
@@ -161,8 +161,8 @@ func init() {
 		// last json, configuration txt file, etc
 		dataDir string
 
-		// dataFile is the file within dataDir that has the data about the singleton we're tracking
-		dataFile string
+		// observerData is the file within dataDir that has the data about the singleton we're tracking
+		observerData string
 
 		// lastJSONFileName is the filename to keep the last received json inside (used to diff for changes)
 		lastJSONFileName string
@@ -183,7 +183,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&icVenvPath, "venv-path", "/internal-custody/venv", "The path to the internal custody venv")
 	rootCmd.PersistentFlags().StringVar(&dataDir, "data-dir", "/data", "The directory that contains all data related to a single singleton to be tracked")
-	rootCmd.PersistentFlags().StringVar(&dataFile, "data-file", "Observer Info.txt", "The file that contains the info about the singleton. Should be relative to datadir.")
+	rootCmd.PersistentFlags().StringVar(&observerData, "observer-data", "/observer-info.txt", "The file that contains the info about the singleton. Should be an absolute path.")
 	rootCmd.PersistentFlags().StringVar(&lastJSONFileName, "json-filename", ".audit-json", "Keeps the last received json so the results can be diffed each iteration")
 	rootCmd.PersistentFlags().DurationVar(&loopDelay, "loop-delay", 30, "How many seconds in between each audit check")
 	rootCmd.PersistentFlags().StringVar(&heartbeatURL, "heartbeat-url", "", "The URL to send heartbeat events to when a loop completes with no errors")
@@ -191,7 +191,7 @@ func init() {
 
 	checkErr(viper.BindPFlag("venv-path", rootCmd.PersistentFlags().Lookup("venv-path")))
 	checkErr(viper.BindPFlag("data-dir", rootCmd.PersistentFlags().Lookup("data-dir")))
-	checkErr(viper.BindPFlag("data-file", rootCmd.PersistentFlags().Lookup("data-file")))
+	checkErr(viper.BindPFlag("observer-data", rootCmd.PersistentFlags().Lookup("observer-data")))
 	checkErr(viper.BindPFlag("json-filename", rootCmd.PersistentFlags().Lookup("json-filename")))
 	checkErr(viper.BindPFlag("loop-delay", rootCmd.PersistentFlags().Lookup("loop-delay")))
 	checkErr(viper.BindPFlag("heartbeat-url", rootCmd.PersistentFlags().Lookup("heartbeat-url")))
