@@ -70,10 +70,10 @@ spec:
               - key: "observer-data.txt"
         - name: ic-data
           persistentVolumeClaim:
-            claimName: "{{ include \"prefarm-alert.fullname\" . }}-ic-data"
+            claimName: {{ include "prefarm-alert.fullname" . }}-ic-data
         - name: chia-data
           persistentVolumeClaim:
-            claimName: "{{ include \"prefarm-alert.fullname\" . }}-chia-data"
+            claimName: {{ include "prefarm-alert.fullname" . }}-chia-data
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
