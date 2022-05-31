@@ -13,6 +13,14 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# Base64 encoded observer data file
+observerDataB64: ""
+# Heartbeat url is designed to work with uptime robot heartbeats
+# Each iteration of the check that has no errors calls this URL
+heartbeatURL: ""
+# Designed to work with keybase webhooks, this is where alerts about prefarm activity are sent
+alertURL: ""
+
 podAnnotations: {}
 
 podSecurityContext: {}
