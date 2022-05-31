@@ -4,3 +4,4 @@ bin/
 .audit-json
 *.sqlite
 Observer Info.txt
+/chia-data/
