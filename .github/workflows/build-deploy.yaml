@@ -38,7 +38,7 @@ jobs:
             secret/data/fmt/k8s/ghcr_image_pull username | IMAGE_PULL_USERNAME;
             secret/data/fmt/k8s/ghcr_image_pull password | IMAGE_PULL_PASSWORD;
             secret/data/fmt/k8s/fremont-baremetal api_server_url | K8S_API_SERVER_URL;
-            secret/data/prefarm-alert/testnet10/chris-singleton observer-info-b64 OBSERVER_DATA_B64;
+            secret/data/prefarm-alert/testnet10/chris-singleton observer-info-b64 | OBSERVER_DATA_B64;
 
       - name: Login to k8s cluster
         uses: Chia-Network/actions/vault/k8s-login@main
