@@ -43,6 +43,10 @@ spec:
                   key: heartbeat_url
             - name: PREFARM_ALERT_DATA_DIR
               value: "/ic-data"
+            - name: PREFARM_ALERT_VENV_PATH
+              value: "/chia-blockchain/venv"
+            - name: PREFARM_ALERT_OBSERVER_DATA
+              value: "/observer-info/observer-data.txt"
             - name: CHIA_ROOT
               value: "/chia-data"
             - name: service
@@ -53,7 +57,7 @@ spec:
               value: "{{ .Values.log_level }}"
           volumeMounts:
             - name: observer-data
-              mountPath: "/"
+              mountPath: "/observer-info"
               readOnly: true
             - name: ic-data
               mountPath: "/ic-data"
@@ -61,19 +65,17 @@ spec:
               mountPath: "/chia-data"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
       volumes:
         - name: observer-data
           secret:
             secretName: {{ include "prefarm-alert.fullname" . }}
-            items:
-              - key: "observer-data.txt"
         - name: ic-data
           persistentVolumeClaim:
             claimName: {{ include "prefarm-alert.fullname" . }}-ic-data
         - name: chia-data
           persistentVolumeClaim:
             claimName: {{ include "prefarm-alert.fullname" . }}-chia-data
+      {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
