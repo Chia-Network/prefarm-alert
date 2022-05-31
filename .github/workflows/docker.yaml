@@ -1,10 +1,8 @@
 name: Build Docker Images
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
+  workflow_call:
 
 concurrency:
   # SHA is added to the end if on `main` to let all main workflows run
