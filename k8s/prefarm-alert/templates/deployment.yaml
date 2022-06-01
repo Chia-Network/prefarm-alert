@@ -50,6 +50,8 @@ spec:
               value: "/chia-blockchain/venv"
             - name: PREFARM_ALERT_OBSERVER_DATA
               value: "/observer-info/observer-data.txt"
+            - name: PREFARM_ALERT_NAME
+              value: "{{ .Values.singletonName }}"
             - name: CHIA_ROOT
               value: "/chia-data"
             - name: service
