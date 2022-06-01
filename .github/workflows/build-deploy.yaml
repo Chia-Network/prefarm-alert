@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   package:
-    uses: ./.github/workflows/docker.yaml
+    uses: Chia-Network/actions/workflows/docker/build.yaml@main
 
   deploy:
     needs:
