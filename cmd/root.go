@@ -44,6 +44,7 @@ var rootCmd = &cobra.Command{
 		loopDelay := viper.GetDuration("loop-delay") * time.Second
 		alertURL := viper.GetString("alert-url")
 		heartbeatURL := viper.GetString("heartbeat-url")
+		singletonName := viper.GetString("name")
 
 		initJSONFile()
 
@@ -121,7 +122,7 @@ var rootCmd = &cobra.Command{
 					} else {
 						eventType = "NEW EVENT"
 					}
-					activities = fmt.Sprintf("%s**(%s) %s**\n%s\n\n", activities, eventType, activity.New.Action, string(marshalledYaml))
+					activities = fmt.Sprintf("%s**(%s) %s**\nSingleton: %s\n%s\n\n", activities, eventType, activity.New.Action, singletonName, string(marshalledYaml))
 				}
 
 				msg := map[string]string{
@@ -185,6 +186,9 @@ func init() {
 
 		// alertWebhookURL is the URL to send alerts to when changes are detected on the singleton
 		alertWebhookURL string
+
+		// singletonName is a friendly name to refer to singletons by, since we could be tracking many
+		singletonName string
 	)
 
 	cobra.OnInitialize(initConfig)
@@ -197,20 +201,16 @@ func init() {
 	rootCmd.PersistentFlags().DurationVar(&loopDelay, "loop-delay", 30, "How many seconds in between each audit check")
 	rootCmd.PersistentFlags().StringVar(&heartbeatURL, "heartbeat-url", "", "The URL to send heartbeat events to when a loop completes with no errors")
 	rootCmd.PersistentFlags().StringVar(&alertWebhookURL, "alert-url", "", "The URL to send webhook alerts to when things change in the singleton")
+	rootCmd.PersistentFlags().StringVar(&singletonName, "name", "", "A friendly name to refer to this singleton, used in alerts")
 
-	checkErr(viper.BindPFlag("venv-path", rootCmd.PersistentFlags().Lookup("venv-path")))
-	checkErr(viper.BindPFlag("data-dir", rootCmd.PersistentFlags().Lookup("data-dir")))
-	checkErr(viper.BindPFlag("observer-data", rootCmd.PersistentFlags().Lookup("observer-data")))
-	checkErr(viper.BindPFlag("json-filename", rootCmd.PersistentFlags().Lookup("json-filename")))
-	checkErr(viper.BindPFlag("loop-delay", rootCmd.PersistentFlags().Lookup("loop-delay")))
-	checkErr(viper.BindPFlag("heartbeat-url", rootCmd.PersistentFlags().Lookup("heartbeat-url")))
-	checkErr(viper.BindPFlag("alert-url", rootCmd.PersistentFlags().Lookup("alert-url")))
-}
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+	cobra.CheckErr(viper.BindPFlag("venv-path", rootCmd.PersistentFlags().Lookup("venv-path")))
+	cobra.CheckErr(viper.BindPFlag("data-dir", rootCmd.PersistentFlags().Lookup("data-dir")))
+	cobra.CheckErr(viper.BindPFlag("observer-data", rootCmd.PersistentFlags().Lookup("observer-data")))
+	cobra.CheckErr(viper.BindPFlag("json-filename", rootCmd.PersistentFlags().Lookup("json-filename")))
+	cobra.CheckErr(viper.BindPFlag("loop-delay", rootCmd.PersistentFlags().Lookup("loop-delay")))
+	cobra.CheckErr(viper.BindPFlag("heartbeat-url", rootCmd.PersistentFlags().Lookup("heartbeat-url")))
+	cobra.CheckErr(viper.BindPFlag("alert-url", rootCmd.PersistentFlags().Lookup("alert-url")))
+	cobra.CheckErr(viper.BindPFlag("name", rootCmd.PersistentFlags().Lookup("name")))
 }
 
 // initConfig reads in config file and ENV variables if set.

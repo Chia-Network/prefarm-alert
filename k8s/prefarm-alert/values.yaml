@@ -20,6 +20,8 @@ observerDataB64: ""
 heartbeatURL: ""
 # Designed to work with keybase webhooks, this is where alerts about prefarm activity are sent
 alertURL: ""
+# The name of the singleton used in alerts, to distinguish between multiple different monitored singletons
+singletonName: ""
 
 # Chia Options
 isTestnet: "false"
