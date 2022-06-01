@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -42,6 +43,8 @@ var rootCmd = &cobra.Command{
 		observerData := viper.GetString("observer-data")
 		loopDelay := viper.GetDuration("loop-delay") * time.Second
 		alertURL := viper.GetString("alert-url")
+
+		initJSONFile()
 
 		for {
 			// Call the sync command, and check for any errors
@@ -226,6 +229,17 @@ func initConfig() {
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	}
+}
+
+// If the json file doesn't exist, we just write an empty list to it so audit --diff doesn't error
+func initJSONFile() {
+	filepath := getJSONFilePath()
+	if _, err := os.Stat(filepath); errors.Is(err, os.ErrNotExist) {
+		err = os.WriteFile(filepath, []byte("[]"), 0644)
+		if err != nil {
+			log.Fatalf("Error initializing json data file. Err: %s\n", err.Error())
+		}
 	}
 }
 
