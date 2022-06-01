@@ -203,20 +203,14 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&alertWebhookURL, "alert-url", "", "The URL to send webhook alerts to when things change in the singleton")
 	rootCmd.PersistentFlags().StringVar(&singletonName, "name", "", "A friendly name to refer to this singleton, used in alerts")
 
-	checkErr(viper.BindPFlag("venv-path", rootCmd.PersistentFlags().Lookup("venv-path")))
-	checkErr(viper.BindPFlag("data-dir", rootCmd.PersistentFlags().Lookup("data-dir")))
-	checkErr(viper.BindPFlag("observer-data", rootCmd.PersistentFlags().Lookup("observer-data")))
-	checkErr(viper.BindPFlag("json-filename", rootCmd.PersistentFlags().Lookup("json-filename")))
-	checkErr(viper.BindPFlag("loop-delay", rootCmd.PersistentFlags().Lookup("loop-delay")))
-	checkErr(viper.BindPFlag("heartbeat-url", rootCmd.PersistentFlags().Lookup("heartbeat-url")))
-	checkErr(viper.BindPFlag("alert-url", rootCmd.PersistentFlags().Lookup("alert-url")))
-	checkErr(viper.BindPFlag("name", rootCmd.PersistentFlags().Lookup("name")))
-}
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+	cobra.CheckErr(viper.BindPFlag("venv-path", rootCmd.PersistentFlags().Lookup("venv-path")))
+	cobra.CheckErr(viper.BindPFlag("data-dir", rootCmd.PersistentFlags().Lookup("data-dir")))
+	cobra.CheckErr(viper.BindPFlag("observer-data", rootCmd.PersistentFlags().Lookup("observer-data")))
+	cobra.CheckErr(viper.BindPFlag("json-filename", rootCmd.PersistentFlags().Lookup("json-filename")))
+	cobra.CheckErr(viper.BindPFlag("loop-delay", rootCmd.PersistentFlags().Lookup("loop-delay")))
+	cobra.CheckErr(viper.BindPFlag("heartbeat-url", rootCmd.PersistentFlags().Lookup("heartbeat-url")))
+	cobra.CheckErr(viper.BindPFlag("alert-url", rootCmd.PersistentFlags().Lookup("alert-url")))
+	cobra.CheckErr(viper.BindPFlag("name", rootCmd.PersistentFlags().Lookup("name")))
 }
 
 // initConfig reads in config file and ENV variables if set.
