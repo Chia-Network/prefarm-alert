@@ -104,9 +104,6 @@ var rootCmd = &cobra.Command{
 				continue
 			}
 
-			// At this point, none of the commands have failed, so we can call the heartbeat endpoint
-			// @TODO call heartbeat endpoint
-
 			diffCount := len(auditDiffResult)
 
 			log.Printf("Audit diff found %d new events!\n", diffCount)
@@ -120,7 +117,6 @@ var rootCmd = &cobra.Command{
 					} else {
 						eventType = "NEW EVENT"
 					}
-					// @TODO maybe we can format the json params as yaml to make it easier to read?
 					activities = fmt.Sprintf("%s**(%s) %s**\n%s\n\n", activities, eventType, activity.New.Action, string(marshalledYaml))
 				}
 
@@ -134,9 +130,12 @@ var rootCmd = &cobra.Command{
 
 				if err != nil {
 					log.Printf("Error sending alert! %s\n", err.Error())
-					return
+					continue
 				}
 			}
+
+			// At this point, none of the commands have failed, so we can call the heartbeat endpoint
+			// @TODO call heartbeat endpoint
 
 			time.Sleep(loopDelay)
 		}
