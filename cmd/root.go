@@ -126,7 +126,7 @@ var rootCmd = &cobra.Command{
 				}
 
 				msg := map[string]string{
-					"msg": fmt.Sprintf(":rotating_light: :rotating_light: %d new activities found on the pre-farm! :rotating_light: :rotating_light:\n%s\n", diffCount, activities),
+					"msg": fmt.Sprintf(":warning: %d new activities found on a tracked custody singleton! :warning:\n%s\n", diffCount, activities),
 				}
 
 				body, _ := json.Marshal(msg)
