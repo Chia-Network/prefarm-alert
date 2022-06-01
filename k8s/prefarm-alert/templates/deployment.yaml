@@ -6,6 +6,9 @@ metadata:
     {{- include "prefarm-alert.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    # Since we use the persistent DB, we need to stop the old pod before creating the new one
+    type: Recreate
   selector:
     matchLabels:
       {{- include "prefarm-alert.selectorLabels" . | nindent 6 }}
