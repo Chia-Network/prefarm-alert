@@ -140,7 +140,7 @@ var rootCmd = &cobra.Command{
 
 			// At this point, none of the commands have failed, so we can call the heartbeat endpoint
 			if heartbeatURL != "" {
-				_, err := http.Get(alertURL)
+				_, err := http.Get(heartbeatURL)
 				if err != nil {
 					log.Printf("Error calling heartbeat endpoint: %s\n", err.Error())
 					continue
