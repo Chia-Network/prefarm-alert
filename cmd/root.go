@@ -43,6 +43,7 @@ var rootCmd = &cobra.Command{
 		observerData := viper.GetString("observer-data")
 		loopDelay := viper.GetDuration("loop-delay") * time.Second
 		alertURL := viper.GetString("alert-url")
+		heartbeatURL := viper.GetString("heartbeat-url")
 
 		initJSONFile()
 
@@ -138,7 +139,13 @@ var rootCmd = &cobra.Command{
 			}
 
 			// At this point, none of the commands have failed, so we can call the heartbeat endpoint
-			// @TODO call heartbeat endpoint
+			if heartbeatURL != "" {
+				_, err := http.Get(alertURL)
+				if err != nil {
+					log.Printf("Error calling heartbeat endpoint: %s\n", err.Error())
+					continue
+				}
+			}
 
 			time.Sleep(loopDelay)
 		}
