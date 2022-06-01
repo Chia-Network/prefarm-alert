@@ -11,4 +11,4 @@ concurrency:
 
 jobs:
   package:
-    uses: Chia-Network/actions/workflows/docker/build.yaml@main
+    uses: Chia-Network/actions/.github/workflows/docker/build.yaml@fix-location
