@@ -16,6 +16,8 @@ import (
 	"github.com/go-yaml/yaml"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/chia-network/go-chia-libs/pkg/rpc"
 )
 
 type auditDiff struct {
@@ -48,7 +50,31 @@ var rootCmd = &cobra.Command{
 
 		initJSONFile()
 
+		client, err := rpc.NewClient(rpc.ConnectionModeHTTP)
+		if err != nil {
+			log.Fatalf("Error starting RPC Client: %s\n", err.Error())
+		}
+
 		for {
+			// First, ensure the full node is actually synced
+			// If it's not synced, we should just abort now, so we trigger heartbeat alerts
+			state, _, err := client.FullNodeService.GetBlockchainState()
+			if err != nil {
+				// If this happens over and over, eventually the uptime robot heartbeat will fail
+				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
+				log.Printf("Error getting blockchain state: %s\n", err.Error())
+				time.Sleep(loopDelay)
+				continue
+			}
+
+			if !state.BlockchainState.Sync.Synced {
+				// If this happens over and over, eventually the uptime robot heartbeat will fail
+				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
+				log.Println("Full node is not synced. Can't continue until the node is synced.")
+				time.Sleep(loopDelay)
+				continue
+			}
+
 			// Call the sync command, and check for any errors
 			syncCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "sync", "-c", observerData)
 			syncCmd.Dir = datadir
@@ -56,7 +82,7 @@ var rootCmd = &cobra.Command{
 			if chiaRootSet {
 				syncCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
 			}
-			_, err := syncCmd.Output()
+			_, err = syncCmd.Output()
 
 			if err != nil {
 				// If this happens over and over, eventually the uptime robot heartbeat will fail
