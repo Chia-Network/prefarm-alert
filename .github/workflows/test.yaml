@@ -1,0 +1,16 @@
+name: Test/Lint/Fmt/Vet
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: golang:1
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test
+        run: make test
