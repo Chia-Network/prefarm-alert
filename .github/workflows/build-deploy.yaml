@@ -15,13 +15,30 @@ jobs:
     uses: Chia-Network/actions/.github/workflows/docker-build.yaml@main
 
   deploy:
+    name: Deploy ${{ matrix.singleton.name }}
     needs:
       - package
     runs-on: [k8s-internal]
     container:
-      image: registry.gitlab.com/cmmarslender/kubectl-helm:v3.9.0
+      image: registry.gitlab.com/cmmarslender/kubectl-helm:v3.10.1
+    strategy:
+      fail_fast: false
+      matrix:
+        singleton:
+          - name: cold-us
+            observer-info-path: secret/data/prefarm-alert/mainnet/cold-us
+            heartbeat-url-path: secret/data/uptimerobot/mainnet-prefarm-audit-cold-us-heartbeat
+          - name: cold-ch
+            observer-info-path: secret/data/prefarm-alert/mainnet/cold-ch
+            heartbeat-url-path: secret/data/uptimerobot/mainnet-prefarm-audit-cold-ch-heartbeat
+          - name: warm-us
+            observer-info-path: secret/data/prefarm-alert/mainnet/warm-us
+            heartbeat-url-path: secret/data/uptimerobot/mainnet-prefarm-audit-warm-us-heartbeat
+          - name: warm-ch
+            observer-info-path: secret/data/prefarm-alert/mainnet/warm-ch
+            heartbeat-url-path: secret/data/uptimerobot/mainnet-prefarm-audit-warm-ch-heartbeat
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Vault Login
         uses: Chia-Network/actions/vault/login@main
@@ -30,7 +47,7 @@ jobs:
           role_name: github
 
       - name: Get secrets from vault
-        uses: hashicorp/vault-action@v2.3.0
+        uses: hashicorp/vault-action@v2.4.2
         with:
           url: ${{ secrets.VAULT_URL }}
           token: ${{ env.VAULT_TOKEN }}
@@ -38,9 +55,9 @@ jobs:
             secret/data/fmt/k8s/ghcr_image_pull username | IMAGE_PULL_USERNAME;
             secret/data/fmt/k8s/ghcr_image_pull password | IMAGE_PULL_PASSWORD;
             secret/data/fmt/k8s/fremont-baremetal api_server_url | K8S_API_SERVER_URL;
-            secret/data/prefarm-alert/testnet10/chris-singleton observer-info-b64 | OBSERVER_DATA_B64;
-            secret/data/keybase/devopsteamchat/custody-test-alerts webhook | ALERT_URL;
-            secret/data/uptimerobot/testnet-prefarm-audit-heartbeat heartbeat-url | HEARTBEAT_URL;
+            ${{ matrix.singleton.observer-info-path }} observer-info-b64 | OBSERVER_DATA_B64;
+            secret/data/keybase/chia_network/chatops webhook | ALERT_URL;
+            ${{ heartbeat-url-path }} heartbeat-url | HEARTBEAT_URL;
 
       - name: Login to k8s cluster
         uses: Chia-Network/actions/vault/k8s-login@main
@@ -54,16 +71,17 @@ jobs:
       - uses: Chia-Network/actions/k8s/image-pull-secret@main
         with:
           secret_name: prefarm-alert-image-pull
-          namespace: prefarm-alert-chris-testnet10
+          namespace: prefarm-alert-${{ matrix.singleton.name }}
           username: ${{ env.IMAGE_PULL_USERNAME }}
           password: ${{ env.IMAGE_PULL_PASSWORD }}
           docker_server: "ghcr.io"
 
       - uses: Chia-Network/actions/helm/deploy@main
         env:
-          DOCKER_TAG: sha-${{ github.sha }}
+          DOCKER_TAG: "sha-${{ github.sha }}"
+          SINGLETON_NAME: "${{ matrix.singleton.name }}"
         with:
-          namespace: prefarm-alert-chris-testnet10
-          app_name: prefarm-alert-chris-testnet10
+          namespace: "prefarm-alert-${{ matrix.singleton.name }}"
+          app_name: "prefarm-alert-${{ matrix.singleton.name }}"
           helm_chart: "./k8s/prefarm-alert"
-          helm_values: "./k8s/values/chris-testnet10.yaml"
+          helm_values: "./k8s/values/mainnet-singletons.yaml"
