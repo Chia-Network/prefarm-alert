@@ -22,7 +22,7 @@ jobs:
     container:
       image: registry.gitlab.com/cmmarslender/kubectl-helm:v3.10.1
     strategy:
-      fail_fast: false
+      fail-fast: false
       matrix:
         singleton:
           - name: cold-us
