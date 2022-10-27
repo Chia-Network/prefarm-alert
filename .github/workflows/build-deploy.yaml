@@ -19,7 +19,7 @@ jobs:
     name: Deploy ${{ matrix.singleton.name }}
     needs:
       - package
-    runs-on: [k8s-internal]
+    runs-on: [k8s-public]
     container:
       image: registry.gitlab.com/cmmarslender/kubectl-helm:v3.10.1
     strategy:
