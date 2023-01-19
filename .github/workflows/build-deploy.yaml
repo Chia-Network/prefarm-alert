@@ -48,7 +48,7 @@ jobs:
           role_name: github-prefarm-alert
 
       - name: Get secrets from vault
-        uses: hashicorp/vault-action@v2.4.2
+        uses: hashicorp/vault-action@v2
         with:
           url: ${{ secrets.VAULT_URL }}
           token: ${{ env.VAULT_TOKEN }}
