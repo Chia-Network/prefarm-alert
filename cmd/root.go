@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -50,7 +51,10 @@ var rootCmd = &cobra.Command{
 
 		initJSONFile()
 
-		client, err := rpc.NewClient(rpc.ConnectionModeHTTP)
+		client, err := rpc.NewClient(rpc.ConnectionModeHTTP, rpc.WithBaseURL(&url.URL{
+			Scheme: "https",
+			Host:   viper.GetString("chia-hostname"),
+		}))
 		if err != nil {
 			log.Fatalf("Error starting RPC Client: %s\n", err.Error())
 		}
@@ -215,6 +219,8 @@ func init() {
 
 		// singletonName is a friendly name to refer to singletons by, since we could be tracking many
 		singletonName string
+
+		chiaHostname string
 	)
 
 	cobra.OnInitialize(initConfig)
@@ -228,6 +234,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&heartbeatURL, "heartbeat-url", "", "The URL to send heartbeat events to when a loop completes with no errors")
 	rootCmd.PersistentFlags().StringVar(&alertWebhookURL, "alert-url", "", "The URL to send webhook alerts to when things change in the singleton")
 	rootCmd.PersistentFlags().StringVar(&singletonName, "name", "", "A friendly name to refer to this singleton, used in alerts")
+	rootCmd.PersistentFlags().StringVar(&chiaHostname, "chia-hostname", "localhost", "The hostname to use to connect to Chia RPC")
 
 	cobra.CheckErr(viper.BindPFlag("venv-path", rootCmd.PersistentFlags().Lookup("venv-path")))
 	cobra.CheckErr(viper.BindPFlag("data-dir", rootCmd.PersistentFlags().Lookup("data-dir")))
@@ -237,6 +244,7 @@ func init() {
 	cobra.CheckErr(viper.BindPFlag("heartbeat-url", rootCmd.PersistentFlags().Lookup("heartbeat-url")))
 	cobra.CheckErr(viper.BindPFlag("alert-url", rootCmd.PersistentFlags().Lookup("alert-url")))
 	cobra.CheckErr(viper.BindPFlag("name", rootCmd.PersistentFlags().Lookup("name")))
+	cobra.CheckErr(viper.BindPFlag("chia-hostname", rootCmd.PersistentFlags().Lookup("chia-hostname")))
 }
 
 // initConfig reads in config file and ENV variables if set.
