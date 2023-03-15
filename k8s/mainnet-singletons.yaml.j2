@@ -17,6 +17,15 @@ secretFile:
   mountPath: "/observer-info"
   values:
     observer-data.txt: "{{ OBSERVER_DATA_B64 }}"
+  stringValues:
+    private_ca.crt: |
+      {{ PRIVATE_CA_CRT | indent(6, False) }}
+    private_ca.key: |
+      {{ PRIVATE_CA_KEY | indent(6, False) }}
+    chia_ca.crt: |
+      {{ CHIA_CA_CRT | indent(6, False) }}
+    chia_ca.key: |
+      {{ CHIA_CA_KEY | indent(6, False) }}
 
 configmapEnvironment:
   PREFARM_ALERT_DATA_DIR: "/ic-data"
@@ -24,6 +33,9 @@ configmapEnvironment:
   PREFARM_ALERT_OBSERVER_DATA: "/observer-info/observer-data.txt"
   PREFARM_ALERT_NAME: "{{ SINGLETON_NAME }}"
   CHIA_ROOT: /chia-data
+  keys: "none"
+  self_hostname: "chia-blockchain-local.chia-blockchain.svc"
+  ca: "/observer-info"
   testnet: "false"
   log_level: ERROR
 

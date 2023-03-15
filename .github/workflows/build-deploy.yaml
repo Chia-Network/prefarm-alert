@@ -59,6 +59,10 @@ jobs:
             ${{ matrix.singleton.observer-info-path }} observer-info-b64 | OBSERVER_DATA_B64;
             secret/data/keybase/chia_network/chatops webhook | ALERT_URL;
             ${{ matrix.singleton.heartbeat-url-path }} heartbeat-url | HEARTBEAT_URL;
+            secret/data/fmt/k8s/fremont-baremetal chia_ca_crt | PRIVATE_CA_CRT;
+            secret/data/fmt/k8s/fremont-baremetal chia_ca_key | PRIVATE_CA_KEY;
+            secret/data/chia-blockchain chia_ca_crt | CHIA_CA_CRT;
+            secret/data/chia-blockchain chia_ca_key | CHIA_CA_KEY;
 
       - name: Login to k8s cluster
         uses: Chia-Network/actions/vault/k8s-login@main
