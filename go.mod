@@ -4,9 +4,9 @@ go 1.18
 
 require (
 	github.com/chia-network/go-chia-libs v0.5.0
-	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.17.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -32,6 +32,5 @@ require (
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
