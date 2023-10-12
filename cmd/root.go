@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-yaml/yaml"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 
 	"github.com/chia-network/go-chia-libs/pkg/rpc"
 )
