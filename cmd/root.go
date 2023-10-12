@@ -51,7 +51,7 @@ var rootCmd = &cobra.Command{
 
 		initJSONFile()
 
-		client, err := rpc.NewClient(rpc.ConnectionModeHTTP, rpc.WithBaseURL(&url.URL{
+		client, err := rpc.NewClient(rpc.ConnectionModeHTTP, rpc.WithAutoConfig(), rpc.WithBaseURL(&url.URL{
 			Scheme: "https",
 			Host:   viper.GetString("chia-hostname"),
 		}))
@@ -71,7 +71,13 @@ var rootCmd = &cobra.Command{
 				continue
 			}
 
-			if !state.BlockchainState.Sync.Synced {
+			if !state.BlockchainState.IsAbsent() {
+				log.Println("Unexpected response from RPC")
+				time.Sleep(loopDelay)
+				continue
+			}
+
+			if !state.BlockchainState.MustGet().Sync.Synced {
 				// If this happens over and over, eventually the uptime robot heartbeat will fail
 				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
 				log.Println("Full node is not synced. Can't continue until the node is synced.")
