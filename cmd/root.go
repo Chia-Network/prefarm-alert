@@ -71,7 +71,7 @@ var rootCmd = &cobra.Command{
 				continue
 			}
 
-			if !state.BlockchainState.IsAbsent() {
+			if state.BlockchainState.IsAbsent() {
 				log.Println("Unexpected response from RPC")
 				time.Sleep(loopDelay)
 				continue
