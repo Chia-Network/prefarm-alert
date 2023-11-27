@@ -3,7 +3,7 @@ module github.com/chia-network/prefarm-alert
 go 1.18
 
 require (
-	github.com/chia-network/go-chia-libs v0.5.0
+	github.com/chia-network/go-chia-libs v0.5.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -12,7 +12,7 @@ require (
 require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
@@ -29,6 +29,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
