@@ -64,7 +64,7 @@ func (d *Datastore) createDBClient() error {
 		return err
 	}
 
-	d.mysqlClient.SetConnMaxLifetime(time.Minute * 3)
+	d.mysqlClient.SetConnMaxLifetime(time.Second * 15)
 	d.mysqlClient.SetMaxOpenConns(1)
 	d.mysqlClient.SetMaxIdleConns(1)
 
@@ -121,7 +121,15 @@ func (d *Datastore) GetAuditData() (string, error) {
 
 // StoreAuditData stores the latest audit json in the DB for this singleton
 func (d *Datastore) StoreAuditData(data string) error {
-	_, err := d.mysqlClient.Query("INSERT INTO auditdata (singleton, auditjson) VALUES (?, ?)"+
+	result, err := d.mysqlClient.Query("INSERT INTO auditdata (singleton, auditjson) VALUES (?, ?)"+
 		" ON DUPLICATE KEY UPDATE auditjson = VALUES(auditjson);", d.singletonName, data)
+
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			log.Printf("Could not close rows: %s\n", err.Error())
+		}
+	}(result)
+
 	return err
 }
