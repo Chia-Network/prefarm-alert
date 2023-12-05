@@ -63,6 +63,9 @@ jobs:
             secret/data/fmt/k8s/fremont-baremetal chia_ca_key | PRIVATE_CA_KEY;
             secret/data/chia-blockchain chia_ca_crt | CHIA_CA_CRT;
             secret/data/chia-blockchain chia_ca_key | CHIA_CA_KEY;
+            secret/data/fmt/mysql1/db-info host | DB_HOST;
+            secret/data/fmt/mysql1/users/prefarm-alert username | DB_USER;
+            secret/data/fmt/mysql1/users/prefarm-alert password | DB_PASS;
 
       - name: Login to k8s cluster
         uses: Chia-Network/actions/vault/k8s-login@main
