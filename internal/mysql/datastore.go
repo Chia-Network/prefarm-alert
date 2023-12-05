@@ -65,8 +65,8 @@ func (d *Datastore) createDBClient() error {
 	}
 
 	d.mysqlClient.SetConnMaxLifetime(time.Minute * 3)
-	d.mysqlClient.SetMaxOpenConns(10)
-	d.mysqlClient.SetMaxIdleConns(10)
+	d.mysqlClient.SetMaxOpenConns(1)
+	d.mysqlClient.SetMaxIdleConns(1)
 
 	return nil
 }

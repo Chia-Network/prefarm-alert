@@ -45,9 +45,6 @@ configmapEnvironment:
   testnet: "false"
   log_level: ERROR
 
-volumes:
+sharedEmptyDirs:
   - name: ic-data
     mountPath: /ic-data
-    readOnly: false
-    size: 1Gi
-    storageClassName: longhorn
