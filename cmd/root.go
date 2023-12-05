@@ -19,6 +19,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/chia-network/go-chia-libs/pkg/rpc"
+
+	"github.com/chia-network/prefarm-alert/internal/mysql"
 )
 
 type auditDiff struct {
@@ -48,8 +50,38 @@ var rootCmd = &cobra.Command{
 		alertURL := viper.GetString("alert-url")
 		heartbeatURL := viper.GetString("heartbeat-url")
 		singletonName := viper.GetString("name")
+		mysqlEnabled := viper.GetBool("enable-mysql")
 
+		// Ensures the JSON file exists and at least has an empty list
 		initJSONFile()
+
+		var datastore *mysql.Datastore
+		if mysqlEnabled {
+			var err error
+			datastore, err = mysql.NewDatastore(
+				singletonName,
+				viper.GetString("db-host"),
+				viper.GetUint16("db-port"),
+				viper.GetString("db-user"),
+				viper.GetString("db-pass"),
+				viper.GetString("db-name"),
+			)
+			if err != nil {
+				log.Printf("[ERROR] Could not initialize mysql connection: %s", err.Error())
+				return
+			}
+
+			data, err := datastore.GetAuditData()
+			if err != nil {
+				log.Printf("[ERROR] %s", err.Error())
+				return
+			}
+
+			// Just in case we somehow got an empty string in the DB
+			if len(data) != 0 {
+				updateJSONFile(data)
+			}
+		}
 
 		client, err := rpc.NewClient(rpc.ConnectionModeHTTP, rpc.WithAutoConfig(), rpc.WithBaseURL(&url.URL{
 			Scheme: "https",
@@ -132,6 +164,20 @@ var rootCmd = &cobra.Command{
 				log.Printf("Error running audit command: %s\n", err.Error())
 				time.Sleep(loopDelay)
 				continue
+			}
+			if datastore != nil {
+				auditJSON, err := readJSONFile()
+				if err != nil {
+					log.Printf("Error reading audit data from json file: %s\n", err.Error())
+					time.Sleep(loopDelay)
+					continue
+				}
+				err = datastore.StoreAuditData(string(auditJSON))
+				if err != nil {
+					log.Printf("Error storing audit data to DB: %s\n", err.Error())
+					time.Sleep(loopDelay)
+					continue
+				}
 			}
 
 			// Parse the json diff
@@ -309,6 +355,19 @@ func initJSONFile() {
 			log.Fatalf("Error initializing json data file. Err: %s\n", err.Error())
 		}
 	}
+}
+
+func updateJSONFile(data string) {
+	filepath := getJSONFilePath()
+	err := os.WriteFile(filepath, []byte(data), 0644)
+	if err != nil {
+		log.Fatalf("Error writing json data file. Err: %s\n", err.Error())
+	}
+}
+
+func readJSONFile() ([]byte, error) {
+	filepath := getJSONFilePath()
+	return os.ReadFile(filepath)
 }
 
 func getJSONFilePath() string {
