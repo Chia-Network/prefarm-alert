@@ -227,6 +227,15 @@ func init() {
 		singletonName string
 
 		chiaHostname string
+
+		// enableMySQL Enables storing the audit json data to mysql so that persistent storage is not required
+		enableMySQL bool
+
+		dbHost string
+		dbPort uint16
+		dbUser string
+		dbPass string
+		dbName string
 	)
 
 	cobra.OnInitialize(initConfig)
@@ -241,6 +250,12 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&alertWebhookURL, "alert-url", "", "The URL to send webhook alerts to when things change in the singleton")
 	rootCmd.PersistentFlags().StringVar(&singletonName, "name", "", "A friendly name to refer to this singleton, used in alerts")
 	rootCmd.PersistentFlags().StringVar(&chiaHostname, "chia-hostname", "localhost", "The hostname to use to connect to Chia RPC")
+	rootCmd.PersistentFlags().BoolVar(&enableMySQL, "enable-mysql", false, "Enable MySQL storage of the audit json")
+	rootCmd.PersistentFlags().StringVar(&dbHost, "db-host", "localhost", "Hostname for MySQL")
+	rootCmd.PersistentFlags().Uint16Var(&dbPort, "db-port", 3306, "Port for MySQL")
+	rootCmd.PersistentFlags().StringVar(&dbUser, "db-user", "root", "User for MySQL")
+	rootCmd.PersistentFlags().StringVar(&dbPass, "db-pass", "password", "Password for MySQL")
+	rootCmd.PersistentFlags().StringVar(&dbName, "db-name", "prefarm-alert", "Database name in MySQL")
 
 	cobra.CheckErr(viper.BindPFlag("venv-path", rootCmd.PersistentFlags().Lookup("venv-path")))
 	cobra.CheckErr(viper.BindPFlag("data-dir", rootCmd.PersistentFlags().Lookup("data-dir")))
@@ -251,6 +266,12 @@ func init() {
 	cobra.CheckErr(viper.BindPFlag("alert-url", rootCmd.PersistentFlags().Lookup("alert-url")))
 	cobra.CheckErr(viper.BindPFlag("name", rootCmd.PersistentFlags().Lookup("name")))
 	cobra.CheckErr(viper.BindPFlag("chia-hostname", rootCmd.PersistentFlags().Lookup("chia-hostname")))
+	cobra.CheckErr(viper.BindPFlag("enable-mysql", rootCmd.PersistentFlags().Lookup("enable-mysql")))
+	cobra.CheckErr(viper.BindPFlag("db-host", rootCmd.PersistentFlags().Lookup("db-host")))
+	cobra.CheckErr(viper.BindPFlag("db-port", rootCmd.PersistentFlags().Lookup("db-port")))
+	cobra.CheckErr(viper.BindPFlag("db-user", rootCmd.PersistentFlags().Lookup("db-user")))
+	cobra.CheckErr(viper.BindPFlag("db-pass", rootCmd.PersistentFlags().Lookup("db-pass")))
+	cobra.CheckErr(viper.BindPFlag("db-name", rootCmd.PersistentFlags().Lookup("db-name")))
 }
 
 // initConfig reads in config file and ENV variables if set.
