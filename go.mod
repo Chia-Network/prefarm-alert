@@ -6,7 +6,7 @@ require (
 	github.com/chia-network/go-chia-libs v0.5.1
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/spf13/cobra v1.8.0
-	github.com/spf13/viper v1.18.1
+	github.com/spf13/viper v1.18.2
 	gopkg.in/yaml.v2 v2.4.0
 )
 
