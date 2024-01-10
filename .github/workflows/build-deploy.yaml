@@ -55,12 +55,12 @@ jobs:
           secrets: |
             secret/data/fmt/k8s/ghcr_image_pull username | IMAGE_PULL_USERNAME;
             secret/data/fmt/k8s/ghcr_image_pull password | IMAGE_PULL_PASSWORD;
-            secret/data/fmt/k8s/fremont-baremetal api_server_url | K8S_API_SERVER_URL;
+            secret/data/fmt/k8s/k0s-internal api_server_url | K8S_API_SERVER_URL;
             ${{ matrix.singleton.observer-info-path }} observer-info-b64 | OBSERVER_DATA_B64;
             secret/data/keybase/chia_network/chatops webhook | ALERT_URL;
             ${{ matrix.singleton.heartbeat-url-path }} heartbeat-url | HEARTBEAT_URL;
-            secret/data/fmt/k8s/fremont-baremetal chia_ca_crt | PRIVATE_CA_CRT;
-            secret/data/fmt/k8s/fremont-baremetal chia_ca_key | PRIVATE_CA_KEY;
+            secret/data/fmt/k8s/k0s-internal chia_ca_crt | PRIVATE_CA_CRT;
+            secret/data/fmt/k8s/k0s-internal chia_ca_key | PRIVATE_CA_KEY;
             secret/data/chia-blockchain chia_ca_crt | CHIA_CA_CRT;
             secret/data/chia-blockchain chia_ca_key | CHIA_CA_KEY;
             secret/data/fmt/mysql1/db-info host | DB_HOST;
@@ -72,7 +72,7 @@ jobs:
         with:
           vault_url: ${{ secrets.VAULT_URL }}
           vault_token: ${{ env.VAULT_TOKEN }}
-          backend_name: fremont-baremetal
+          backend_name: k0s-internal
           role_name: github-actions
           cluster_url: ${{ env.K8S_API_SERVER_URL }}
 
