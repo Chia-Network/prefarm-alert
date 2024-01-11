@@ -3,7 +3,7 @@ module github.com/chia-network/prefarm-alert
 go 1.18
 
 require (
-	github.com/chia-network/go-chia-libs v0.5.1
+	github.com/chia-network/go-chia-libs v0.5.2
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
