@@ -1,4 +1,4 @@
-name: Test/Lint/Fmt/Vet
+name: Go Test
 on:
   push:
     branches:
@@ -9,10 +9,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container: golang:1
-    env:
-      GOFLAGS: "-buildvcs=false"
     steps:
-      - uses: actions/checkout@v3
+      - name: Mark git directory safe
+        uses: Chia-Network/actions/git-mark-workspace-safe@main
+
+      - uses: actions/checkout@v4
 
       - name: Test
         run: make test
