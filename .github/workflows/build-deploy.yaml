@@ -21,7 +21,7 @@ jobs:
     name: Deploy ${{ matrix.singleton.name }}
     needs:
       - package
-    runs-on: [k8s-public]
+    runs-on: [k8s-public-fmt]
     container:
       image: registry.gitlab.com/cmmarslender/kubectl-helm:v3
     strategy:
@@ -65,9 +65,9 @@ jobs:
             secret/data/fmt/k8s/fmt-k8s-internal chia_ca_key | PRIVATE_CA_KEY;
             secret/data/chia-blockchain chia_ca_crt | CHIA_CA_CRT;
             secret/data/chia-blockchain chia_ca_key | CHIA_CA_KEY;
-            secret/data/fmt/mysql1/db-info host | DB_HOST;
-            secret/data/fmt/mysql1/users/prefarm-alert username | DB_USER;
-            secret/data/fmt/mysql1/users/prefarm-alert password | DB_PASS;
+            secret/data/fmt/mysql/db-info host | DB_HOST;
+            secret/data/fmt/mysql/users/prefarm-alert username | DB_USER;
+            secret/data/fmt/mysql/users/prefarm-alert password | DB_PASS;
 
       - name: Login to k8s cluster
         uses: Chia-Network/actions/vault/k8s-login@main
