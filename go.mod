@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/chia-network/go-chia-libs v0.6.0
 	github.com/go-sql-driver/mysql v1.8.1
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	gopkg.in/yaml.v2 v2.4.0
 )
