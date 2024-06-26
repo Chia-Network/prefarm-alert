@@ -55,6 +55,15 @@ networkPolicy:
     - Egress
   egressRules:
     - to:
+        - namespaceSelector:
+            matchLabels:
+              name: "chia-blockchain"
+      ports:
+        - protocol: TCP
+          port: 8444
+        - protocol: TCP
+          port: 8555
+    - to:
         - ipBlock:
             cidr: "{{ DB_HOST }}/32"
       ports:
