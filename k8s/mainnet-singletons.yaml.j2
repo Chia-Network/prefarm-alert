@@ -48,3 +48,15 @@ configmapEnvironment:
 sharedEmptyDirs:
   - name: ic-data
     mountPath: /ic-data
+
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Egress
+  egressRules:
+    - to:
+        - ipBlock:
+            cidr: "{{ DB_HOST }}/32"
+      ports:
+        - protocol: TCP
+          port: 3306
