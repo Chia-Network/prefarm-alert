@@ -48,3 +48,24 @@ configmapEnvironment:
 sharedEmptyDirs:
   - name: ic-data
     mountPath: /ic-data
+
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Egress
+  egressRules:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: "chia-blockchain"
+      ports:
+        - protocol: TCP
+          port: 8444
+        - protocol: TCP
+          port: 8555
+    - to:
+        - ipBlock:
+            cidr: "{{ DB_HOST }}/32"
+      ports:
+        - protocol: TCP
+          port: 3306
