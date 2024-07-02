@@ -261,8 +261,8 @@ var rootCmd = &cobra.Command{
 			}
 			var (
 				pendingPayments []string
-				pendingRekeys []string
-				activeSection string
+				pendingRekeys   []string
+				activeSection   string
 			)
 			splitPendingEvents := strings.Split(outstandingEvents, "\n")
 			for _, event := range splitPendingEvents {
@@ -364,7 +364,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&dataDir, "data-dir", "/data", "The directory that contains all data related to a single singleton to be tracked")
 	rootCmd.PersistentFlags().StringVar(&observerData, "observer-data", "/observer-info.txt", "The file that contains the info about the singleton. Should be an absolute path.")
 	rootCmd.PersistentFlags().StringVar(&lastJSONFileName, "json-filename", ".audit-json", "Keeps the last received json so the results can be diffed each iteration")
-	rootCmd.PersistentFlags().DurationVar(&loopDelay, "loop-delay", 30 * time.Second, "How many seconds in between each audit check")
+	rootCmd.PersistentFlags().DurationVar(&loopDelay, "loop-delay", 30*time.Second, "How many seconds in between each audit check")
 	rootCmd.PersistentFlags().StringVar(&heartbeatURL, "heartbeat-url", "", "The URL to send heartbeat events to when a loop completes with no errors")
 	rootCmd.PersistentFlags().StringVar(&alertWebhookURL, "alert-url", "", "The URL to send webhook alerts to when things change in the singleton")
 	rootCmd.PersistentFlags().StringVar(&singletonName, "name", "", "A friendly name to refer to this singleton, used in alerts")
