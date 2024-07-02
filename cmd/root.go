@@ -34,7 +34,10 @@ type auditItem struct {
 	Params map[string]interface{} `json:"params"`
 }
 
-var cfgFile string
+var (
+	cfgFile            string
+	lastReadyAlertTime *time.Time
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -137,9 +140,9 @@ var rootCmd = &cobra.Command{
 			// Call the audit command to get the diff between previous json and current audit events
 			auditDiffCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit", "-d", getJSONFilePath())
 			auditDiffCmd.Dir = datadir
-			auditDiffCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+			auditDiffCmd.Env = append(auditDiffCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
 			if chiaRootSet {
-				auditDiffCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+				auditDiffCmd.Env = append(auditDiffCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
 			}
 			auditDiffJSON, err := auditDiffCmd.Output()
 			if err != nil {
@@ -153,7 +156,7 @@ var rootCmd = &cobra.Command{
 			// Call the audit command to save the raw audit JSON, after we successfully got the diff output
 			auditCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit", "-f", getJSONFilePath())
 			auditCmd.Dir = datadir
-			auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+			auditCmd.Env = append(auditCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
 			if chiaRootSet {
 				auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
 			}
@@ -230,6 +233,105 @@ var rootCmd = &cobra.Command{
 				}
 			}
 
+			// Check if there are any outstanding payments that can be completed
+			paymentsCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "show")
+			paymentsCmd.Dir = datadir
+			paymentsCmd.Env = append(paymentsCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+			if chiaRootSet {
+				paymentsCmd.Env = append(paymentsCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+			}
+			paymentCmdOut, err := paymentsCmd.Output()
+			if err != nil {
+				// If this happens over and over, eventually the uptime robot heartbeat will fail
+				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
+				log.Printf("Error checking for ready payments: %s\n", err.Error())
+				time.Sleep(loopDelay)
+				continue
+			}
+			// Locate the Outstanding Events section
+			splitPaymentCmd := strings.Split(string(paymentCmdOut), "Outstanding events:")
+			if len(splitPaymentCmd) < 2 {
+				log.Printf("Error locating outstanding events section of status output")
+				time.Sleep(loopDelay)
+				continue
+			}
+			outstandingEvents := splitPaymentCmd[1]
+			if outstandingEvents == "\n  PAYMENTS:\n  REKEYS:\n" {
+				// This is the exact output when there are no outstanding payments/rekeys, so we can continue if this is the case
+				log.Printf("No pending payments/rekeys")
+				// Reset last ready alert time to nil
+				// This also happens below, to account for the case where there are rekeys but no payments
+				lastReadyAlertTime = nil
+				time.Sleep(loopDelay)
+				continue
+			}
+			var (
+				pendingPayments []string
+				pendingRekeys   []string
+				activeSection   string
+			)
+			splitPendingEvents := strings.Split(outstandingEvents, "\n")
+			for _, event := range splitPendingEvents {
+				event = strings.TrimSpace(event)
+				switch event {
+				case "":
+					continue
+				case "PAYMENTS:":
+					activeSection = "payment"
+					continue
+				case "REKEYS:":
+					activeSection = "rekey"
+					continue
+				default:
+					// Nothing, fall through to the logic below
+				}
+
+				switch activeSection {
+				case "payment":
+					pendingPayments = append(pendingPayments, event)
+				case "rekey":
+					pendingRekeys = append(pendingRekeys, event)
+				default:
+					log.Printf("No active section to assign the event to!")
+				}
+			}
+			log.Printf("Found %d pending payments and %d pending rekeys", len(pendingPayments), len(pendingRekeys))
+
+			// Reset last alert time to nothing if we cleared out all pending payments
+			if len(pendingPayments) == 0 {
+				lastReadyAlertTime = nil
+			}
+
+			// Check if any of the payments are ready now
+			for _, pendingPayment := range pendingPayments {
+				if strings.Contains(pendingPayment, "(Ready at:") {
+					// Payment not ready to be completed
+					continue
+				}
+				if strings.Contains(pendingPayment, "(Ready)") {
+					// Payment ready, send alert to alerting channel for finalizing payments
+					log.Println("Found payment ready to be completed!")
+					if lastReadyAlertTime == nil || time.Since(*lastReadyAlertTime) > viper.GetDuration("ready-alert-interval") {
+						log.Printf("haven't alerted in %s minutes, sending another alert\n", viper.GetDuration("ready-alert-interval").String())
+						msg := map[string]string{
+							"msg": fmt.Sprintf(":stopwatch: Payment ready to be completed on a tracked custody singleton (%s)! :stopwatch:\n", singletonName),
+						}
+
+						body, _ := json.Marshal(msg)
+						_, err = http.Post(viper.GetString("ready-alert-url"), "application/json", bytes.NewBuffer(body))
+
+						if err != nil {
+							log.Printf("Error sending alert! %s\n", err.Error())
+							continue
+						}
+
+						// On success, set last alert time to avoid excessive alerts
+						now := time.Now()
+						lastReadyAlertTime = &now
+					}
+				}
+			}
+
 			time.Sleep(loopDelay)
 		}
 	},
@@ -269,6 +371,12 @@ func init() {
 		// alertWebhookURL is the URL to send alerts to when changes are detected on the singleton
 		alertWebhookURL string
 
+		// paymentReadyAlertInterval Sets the interval for alerts for ready payments (alerts wont happen more frequently than this value)
+		paymentReadyAlertInterval time.Duration
+
+		// paymentReadyAlertWebhookURL is the URL to send alerts to when there is a payment ready to be completed
+		paymentReadyAlertWebhookURL string
+
 		// singletonName is a friendly name to refer to singletons by, since we could be tracking many
 		singletonName string
 
@@ -291,9 +399,11 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&dataDir, "data-dir", "/data", "The directory that contains all data related to a single singleton to be tracked")
 	rootCmd.PersistentFlags().StringVar(&observerData, "observer-data", "/observer-info.txt", "The file that contains the info about the singleton. Should be an absolute path.")
 	rootCmd.PersistentFlags().StringVar(&lastJSONFileName, "json-filename", ".audit-json", "Keeps the last received json so the results can be diffed each iteration")
-	rootCmd.PersistentFlags().DurationVar(&loopDelay, "loop-delay", 30 * time.Second, "How many seconds in between each audit check")
+	rootCmd.PersistentFlags().DurationVar(&loopDelay, "loop-delay", 30*time.Second, "How many seconds in between each audit check")
 	rootCmd.PersistentFlags().StringVar(&heartbeatURL, "heartbeat-url", "", "The URL to send heartbeat events to when a loop completes with no errors")
 	rootCmd.PersistentFlags().StringVar(&alertWebhookURL, "alert-url", "", "The URL to send webhook alerts to when things change in the singleton")
+	rootCmd.PersistentFlags().StringVar(&paymentReadyAlertWebhookURL, "ready-alert-url", "", "The URL to sent payment ready alerts to")
+	rootCmd.PersistentFlags().DurationVar(&paymentReadyAlertInterval, "ready-alert-interval", 60*time.Minute, "The interval for sending payment ready alerts")
 	rootCmd.PersistentFlags().StringVar(&singletonName, "name", "", "A friendly name to refer to this singleton, used in alerts")
 	rootCmd.PersistentFlags().StringVar(&chiaHostname, "chia-hostname", "localhost", "The hostname to use to connect to Chia RPC")
 	rootCmd.PersistentFlags().BoolVar(&enableMySQL, "enable-mysql", false, "Enable MySQL storage of the audit json")
@@ -310,6 +420,8 @@ func init() {
 	cobra.CheckErr(viper.BindPFlag("loop-delay", rootCmd.PersistentFlags().Lookup("loop-delay")))
 	cobra.CheckErr(viper.BindPFlag("heartbeat-url", rootCmd.PersistentFlags().Lookup("heartbeat-url")))
 	cobra.CheckErr(viper.BindPFlag("alert-url", rootCmd.PersistentFlags().Lookup("alert-url")))
+	cobra.CheckErr(viper.BindPFlag("ready-alert-url", rootCmd.PersistentFlags().Lookup("ready-alert-url")))
+	cobra.CheckErr(viper.BindPFlag("ready-alert-interval", rootCmd.PersistentFlags().Lookup("ready-alert-interval")))
 	cobra.CheckErr(viper.BindPFlag("name", rootCmd.PersistentFlags().Lookup("name")))
 	cobra.CheckErr(viper.BindPFlag("chia-hostname", rootCmd.PersistentFlags().Lookup("chia-hostname")))
 	cobra.CheckErr(viper.BindPFlag("enable-mysql", rootCmd.PersistentFlags().Lookup("enable-mysql")))
