@@ -137,9 +137,9 @@ var rootCmd = &cobra.Command{
 			// Call the audit command to get the diff between previous json and current audit events
 			auditDiffCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit", "-d", getJSONFilePath())
 			auditDiffCmd.Dir = datadir
-			auditDiffCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+			auditDiffCmd.Env = append(auditDiffCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
 			if chiaRootSet {
-				auditDiffCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+				auditDiffCmd.Env = append(auditDiffCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
 			}
 			auditDiffJSON, err := auditDiffCmd.Output()
 			if err != nil {
@@ -153,7 +153,7 @@ var rootCmd = &cobra.Command{
 			// Call the audit command to save the raw audit JSON, after we successfully got the diff output
 			auditCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "audit", "-f", getJSONFilePath())
 			auditCmd.Dir = datadir
-			auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+			auditCmd.Env = append(auditCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
 			if chiaRootSet {
 				auditCmd.Env = append(syncCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
 			}
@@ -227,6 +227,79 @@ var rootCmd = &cobra.Command{
 				if err != nil {
 					log.Printf("Error calling heartbeat endpoint: %s\n", err.Error())
 					continue
+				}
+			}
+
+			// Check if there are any outstanding payments that can be completed
+			paymentsCmd := exec.Command(fmt.Sprintf("%s/bin/cic", venvpath), "show")
+			paymentsCmd.Dir = datadir
+			paymentsCmd.Env = append(paymentsCmd.Env, fmt.Sprintf("PATH=%s/bin/", venvpath))
+			if chiaRootSet {
+				paymentsCmd.Env = append(paymentsCmd.Env, fmt.Sprintf("CHIA_ROOT=%s", chiaRoot))
+			}
+			paymentCmdOut, err := paymentsCmd.Output()
+			if err != nil {
+				// If this happens over and over, eventually the uptime robot heartbeat will fail
+				// at that point, we'll check why this is failing, so no need to keep track of repeated errors here
+				log.Printf("Error checking for ready payments: %s\n", err.Error())
+				time.Sleep(loopDelay)
+				continue
+			}
+			// Locate the Outstanding Events section
+			splitPaymentCmd := strings.Split(string(paymentCmdOut), "Outstanding events:")
+			if len(splitPaymentCmd) < 2 {
+				log.Printf("Error locating outstanding events section of status output")
+				time.Sleep(loopDelay)
+				continue
+			}
+			outstandingEvents := splitPaymentCmd[1]
+			if outstandingEvents == "\n  PAYMENTS:\n  REKEYS:\n" {
+				// This is the exact output when there are no outstanding payments/rekeys, so we can continue if this is the case
+				log.Printf("No pending payments/rekeys")
+				time.Sleep(loopDelay)
+				continue
+			}
+			var (
+				pendingPayments []string
+				pendingRekeys []string
+				activeSection string
+			)
+			splitPendingEvents := strings.Split(outstandingEvents, "\n")
+			for _, event := range splitPendingEvents {
+				event = strings.TrimSpace(event)
+				switch event {
+				case "":
+					continue
+				case "PAYMENTS:":
+					activeSection = "payment"
+					continue
+				case "REKEYS:":
+					activeSection = "rekey"
+					continue
+				default:
+					// Nothing, fall through to the logic below
+				}
+
+				switch activeSection {
+				case "payment":
+					pendingPayments = append(pendingPayments, event)
+				case "rekey":
+					pendingRekeys = append(pendingRekeys, event)
+				default:
+					log.Printf("No active section to assign the event to!")
+				}
+			}
+			log.Printf("Found %d pending payments and %d pending rekeys", len(pendingPayments), len(pendingRekeys))
+
+			// Check if any of the payments are ready now
+			for _, pendingPayment := range pendingPayments {
+				if strings.Contains(pendingPayment, "(Ready at:") {
+					// Payment not ready to be completed
+					continue
+				}
+				if strings.Contains(pendingPayment, "(Ready)") {
+					// Payment ready, send alert to alerting channel for finalizing payments
+					log.Println("Found payment ready to be completed!")
 				}
 			}
 
