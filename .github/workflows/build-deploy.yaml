@@ -60,6 +60,7 @@ jobs:
             secret/data/fmt/k8s/k8s-fmt api_server_url | K8S_API_SERVER_URL;
             ${{ matrix.singleton.observer-info-path }} observer-info-b64 | OBSERVER_DATA_B64;
             secret/data/keybase/chia_network/chatops webhook | ALERT_URL;
+            secret/data/keybase/devopsteamchat/z_alerts webhook| READY_ALERT_URL;
             ${{ matrix.singleton.heartbeat-url-path }} heartbeat-url | HEARTBEAT_URL;
             secret/data/fmt/k8s/k8s-fmt chia_ca_crt | PRIVATE_CA_CRT;
             secret/data/fmt/k8s/k8s-fmt chia_ca_key | PRIVATE_CA_KEY;
