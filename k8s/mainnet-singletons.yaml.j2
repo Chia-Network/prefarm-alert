@@ -40,8 +40,8 @@ configmapEnvironment:
   PREFARM_ALERT_NAME: "{{ SINGLETON_NAME }}"
   CHIA_ROOT: /chia-data
   keys: "none"
-  self_hostname: "chia-blockchain-local.chia-blockchain.svc"
-  PREFARM_ALERT_CHIA_HOSTNAME: "chia-blockchain-local.chia-blockchain.svc"
+  self_hostname: "node-node-rpc.chia-blockchain-mainnet.svc"
+  PREFARM_ALERT_CHIA_HOSTNAME: "node-node-rpc.chia-blockchain-mainnet.svc"
   ca: "/observer-info"
   testnet: "false"
   log_level: ERROR
@@ -58,10 +58,8 @@ networkPolicy:
     - to:
         - namespaceSelector:
             matchLabels:
-              name: "chia-blockchain"
+              name: "chia-blockchain-mainnet"
       ports:
-        - protocol: TCP
-          port: 8444
         - protocol: TCP
           port: 8555
     - to:
