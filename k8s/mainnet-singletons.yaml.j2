@@ -58,7 +58,7 @@ networkPolicy:
     - to:
         - namespaceSelector:
             matchLabels:
-              name: "chia-blockchain-mainnet"
+              kubernetes.io/metadata.name: "chia-blockchain-mainnet"
       ports:
         - protocol: TCP
           port: 8555
