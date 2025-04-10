@@ -5,8 +5,8 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
-	github.com/chia-network/go-chia-libs v0.21.0
-	github.com/go-sql-driver/mysql v1.9.1
+	github.com/chia-network/go-chia-libs v0.21.3
+	github.com/go-sql-driver/mysql v1.9.2
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	gopkg.in/yaml.v2 v2.4.0
