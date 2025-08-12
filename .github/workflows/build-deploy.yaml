@@ -41,7 +41,7 @@ jobs:
             observer-info-path: secret/data/prefarm-alert/mainnet/warm-ch
             heartbeat-url-path: secret/data/uptimerobot/mainnet-prefarm-audit-warm-ch-heartbeat
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Vault Login
         uses: Chia-Network/actions/vault/login@main
