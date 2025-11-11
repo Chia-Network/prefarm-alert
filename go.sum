@@ -1,7 +1,7 @@
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
-github.com/chia-network/go-chia-libs v0.23.1 h1:q9WtnbAcoL7eLpJGnjnm8tCl9u2SlIBc19W5qE84IiM=
-github.com/chia-network/go-chia-libs v0.23.1/go.mod h1:TYbjGcYWkFTJOFX0//xVHkToZ4Gs1qtZfDXArgnsiJc=
+github.com/chia-network/go-chia-libs v0.24.2 h1:1CHvXWLnjPCOeiX6j7OFHtmOqRY6ePfm27dTaBhy0e4=
+github.com/chia-network/go-chia-libs v0.24.2/go.mod h1:TYbjGcYWkFTJOFX0//xVHkToZ4Gs1qtZfDXArgnsiJc=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
