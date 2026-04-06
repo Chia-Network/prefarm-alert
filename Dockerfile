@@ -4,7 +4,7 @@ COPY . /app
 WORKDIR /app
 RUN make build
 
-FROM chianetwork/chia-docker:2.5.4
+FROM chianetwork/chia-docker:2.7.0
 
 # Add internal-custody to the venv provided by chia-docker
 RUN . /chia-blockchain/venv/bin/activate && \
