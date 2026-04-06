@@ -4,7 +4,8 @@ COPY . /app
 WORKDIR /app
 RUN make build
 
-FROM chianetwork/chia-docker:2.7.0
+# Old versions of chia-blockchain don't work with Trixie, and the custody tools depend on a pretty old version
+FROM chianetwork/chia-docker:2.5.4
 
 # Add internal-custody to the venv provided by chia-docker
 RUN . /chia-blockchain/venv/bin/activate && \
