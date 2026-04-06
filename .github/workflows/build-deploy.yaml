@@ -16,6 +16,8 @@ permissions:
 jobs:
   package:
     uses: Chia-Network/actions/.github/workflows/docker-build.yaml@main
+    with:
+      docker-platforms: 'linux/amd64'
 
   deploy:
     name: Deploy ${{ matrix.singleton.name }}
